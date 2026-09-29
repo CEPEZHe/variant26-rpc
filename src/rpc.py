@@ -6,7 +6,8 @@ import json
 import logging
 import socket
 import socketserver
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from model import DataModel
 
@@ -57,7 +58,9 @@ def _read_exact(sock: socket.socket, size: int) -> bytes:
 def encode_request(operation: int, body: dict[str, Any]) -> bytes:
     """Encode: operation(2) + body size(4) + JSON, little-endian."""
     raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    return operation.to_bytes(2, "little") + len(raw).to_bytes(4, "little") + raw
+    return (
+        operation.to_bytes(2, "little") + len(raw).to_bytes(4, "little") + raw
+    )
 
 
 def decode_request(sock: socket.socket) -> tuple[int, dict[str, Any]]:
@@ -132,7 +135,9 @@ class RPCServer(socketserver.ThreadingTCPServer):
 
     allow_reuse_address = True
 
-    def __init__(self, address: tuple[str, int], model: DataModel | None = None):
+    def __init__(
+        self, address: tuple[str, int], model: DataModel | None = None
+    ):
         super().__init__(address, RPCRequestHandler)
         self.dispatcher = RPCDispatcher(model)
 
@@ -146,7 +151,9 @@ class RPCClient:
 
     def _call(self, name: str, **kwargs: Any) -> Any:
         operation = OPERATIONS[name]
-        with socket.create_connection((self.host, self.port), timeout=5) as sock:
+        with socket.create_connection(
+            (self.host, self.port), timeout=5
+        ) as sock:
             sock.sendall(encode_request(operation, kwargs))
             response_op, body = decode_response(sock)
         if response_op != operation:

@@ -60,7 +60,13 @@ def main() -> None:
             else:
                 result = getattr(model, command)()
             print(json.dumps(result, ensure_ascii=False, indent=2))
-        except (IndexError, KeyError, ValueError, TypeError, AttributeError) as exc:
+        except (
+            IndexError,
+            KeyError,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ) as exc:
             print(f"error: {exc}")
 
 

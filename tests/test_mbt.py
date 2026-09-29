@@ -57,44 +57,37 @@ class RPCStateMachine(RuleBasedStateMachine):
         result = self.client.recent_feedback_projection(now=1000)
         assert result == []
 
-    @rule(value=st.integers(min_value=1, max_value=10_000))
-    def complete_rpc_flow(self, value: int) -> None:
-        """Exercise all CRUD-style RPC operations in one generated flow."""
-        self.case_number += 1
-
-        base = self.case_number * 10_000
-        profile_key = base + 1
-        query_key = base + 2
-        feedback_key = base + 3
-
+    def _profile_flow(self, key: int, value: int) -> None:
         profile = self.client.create_profile(
-            key=profile_key,
+            key=key,
             created=995,
             ip="127.0.0.1",
             locale="ru_RU",
             platform="windows",
             user_agent=f"hypothesis-{value}",
         )
-
-        assert profile["key"] == profile_key
+        assert profile["key"] == key
 
         profiles = self.client.get_profiles()
-        assert any(
-            item["key"] == profile_key
-            for item in profiles
-        )
+        assert any(item["key"] == key for item in profiles)
 
-        fetched_profile = self.client.get_profile(profile_key)
-        assert fetched_profile["key"] == profile_key
+        fetched = self.client.get_profile(key)
+        assert fetched["key"] == key
 
-        edited_profile = self.client.edit_profile(
-            profile_key,
+        edited = self.client.edit_profile(
+            key,
             locale="en_US",
         )
-        assert edited_profile["locale"] == "en_US"
+        assert edited["locale"] == "en_US"
 
+    def _query_flow(
+        self,
+        key: int,
+        profile_key: int,
+        value: int,
+    ) -> None:
         query = self.client.create_query(
-            key=query_key,
+            key=key,
             created=995,
             parameter=f"parameter-{value}",
             profile=profile_key,
@@ -102,28 +95,29 @@ class RPCStateMachine(RuleBasedStateMachine):
             tags=f"tag-{value}",
             status="new",
         )
-
-        assert query["key"] == query_key
+        assert query["key"] == key
 
         queries = self.client.get_queries()
-        assert any(
-            item["key"] == query_key
-            for item in queries
-        )
+        assert any(item["key"] == key for item in queries)
 
-        fetched_query = self.client.get_query(query_key)
-        assert fetched_query["key"] == query_key
+        fetched = self.client.get_query(key)
+        assert fetched["key"] == key
 
-        edited_query = self.client.edit_query(
-            query_key,
+        edited = self.client.edit_query(
+            key,
             status="done",
             tags=f"tag-edited-{value}",
         )
+        assert edited["status"] == "done"
 
-        assert edited_query["status"] == "done"
-
+    def _feedback_flow(
+        self,
+        key: int,
+        query_key: int,
+        value: int,
+    ) -> None:
         feedback = self.client.create_feedback(
-            key=feedback_key,
+            key=key,
             created=996,
             response=f"response-{value}",
             status="success",
@@ -131,37 +125,42 @@ class RPCStateMachine(RuleBasedStateMachine):
             query=query_key,
             cache_hit=0,
         )
-
-        assert feedback["key"] == feedback_key
+        assert feedback["key"] == key
 
         all_feedback = self.client.get_feedback()
-        assert any(
-            item["key"] == feedback_key
-            for item in all_feedback
-        )
+        assert any(item["key"] == key for item in all_feedback)
 
-        fetched_feedback = self.client.get_feedback_item(
-            feedback_key
-        )
-        assert fetched_feedback["key"] == feedback_key
+        fetched = self.client.get_feedback_item(key)
+        assert fetched["key"] == key
 
-        edited_feedback = self.client.edit_feedback(
-            feedback_key,
+        edited = self.client.edit_feedback(
+            key,
             cache_hit=1,
         )
-        assert edited_feedback["cache_hit"] == 1
+        assert edited["cache_hit"] == 1
 
-        projection = self.client.recent_feedback_projection(
-            now=1000
-        )
-
+    def _check_projection(self, value: int) -> None:
+        projection = self.client.recent_feedback_projection(now=1000)
         expected = {
             "cache_hit": 1,
             "exception": "",
             "tags": f"tag-edited-{value}",
         }
-
         assert expected in projection
+
+    @rule(value=st.integers(min_value=1, max_value=10_000))
+    def complete_rpc_flow(self, value: int) -> None:
+        self.case_number += 1
+        base = self.case_number * 10_000
+
+        profile_key = base + 1
+        query_key = base + 2
+        feedback_key = base + 3
+
+        self._profile_flow(profile_key, value)
+        self._query_flow(query_key, profile_key, value)
+        self._feedback_flow(feedback_key, query_key, value)
+        self._check_projection(value)
 
 
 TestRPCStateMachine = RPCStateMachine.TestCase

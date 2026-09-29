@@ -52,7 +52,9 @@ class DataModel:
         missing = [field for field in fields if field not in values]
         extra = [field for field in values if field not in fields]
         if missing or extra:
-            raise ValueError(f"invalid fields: missing={missing}, extra={extra}")
+            raise ValueError(
+                f"invalid fields: missing={missing}, extra={extra}"
+            )
         if any(record[0] == values["key"] for record in table):
             raise ValueError(f"duplicate key={values['key']}")
         record = [values[field] for field in fields]
@@ -148,7 +150,9 @@ class DataModel:
         """Implement the variant-26 full outer join/projection selection."""
         current = int(time.time()) if now is None else now
         threshold = current - 8 * 60
-        recent_queries = [record for record in self.queries if record[1] > threshold]
+        recent_queries = [
+            record for record in self.queries if record[1] > threshold
+        ]
         output: list[dict[str, Any]] = []
         matched_feedback: set[int] = set()
 
