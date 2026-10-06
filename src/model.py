@@ -144,34 +144,44 @@ class DataModel:
             self._find(self.queries, int(changes["query"]))
         return self._edit(self.feedback, FEEDBACK_FIELDS, key, changes)
 
-    def recent_feedback_projection(
-        self, now: int | None = None
-    ) -> list[dict[str, Any]]:
-        """Implement the variant-26 full outer join/projection selection."""
-        current = int(time.time()) if now is None else now
-        threshold = current - 8 * 60
-        recent_queries = [
-            record for record in self.queries if record[1] > threshold
+    def _append_query_projection(
+        self,
+        output: list[dict[str, Any]],
+        matched_feedback: set[int],
+        query: list[Any],
+    ) -> None:
+        """Append projection rows for one recent Query."""
+        matches = [
+            item for item in self.feedback
+            if item[5] == query[0]
         ]
-        output: list[dict[str, Any]] = []
-        matched_feedback: set[int] = set()
 
-        for query in recent_queries:
-            matches = [item for item in self.feedback if item[5] == query[0]]
-            if not matches:
-                output.append(
-                    {"cache_hit": None, "exception": None, "tags": query[5]}
-                )
-            for item in matches:
-                matched_feedback.add(item[0])
-                output.append(
-                    {
-                        "cache_hit": item[6],
-                        "exception": item[4],
-                        "tags": query[5],
-                    }
-                )
+        if not matches:
+            output.append(
+                {
+                    "cache_hit": None,
+                    "exception": None,
+                    "tags": query[5],
+                }
+            )
+            return
 
+        for item in matches:
+            matched_feedback.add(item[0])
+            output.append(
+                {
+                    "cache_hit": item[6],
+                    "exception": item[4],
+                    "tags": query[5],
+                }
+            )
+
+    def _append_unmatched_feedback(
+        self,
+        output: list[dict[str, Any]],
+        matched_feedback: set[int],
+    ) -> None:
+        """Append Feedback rows that have no matching recent Query."""
         for item in self.feedback:
             if item[0] not in matched_feedback:
                 output.append(
@@ -181,4 +191,34 @@ class DataModel:
                         "tags": None,
                     }
                 )
+
+    def recent_feedback_projection(
+        self,
+        now: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Implement the variant-26 full outer join/projection selection."""
+        current = int(time.time()) if now is None else now
+        threshold = current - 8 * 60
+
+        recent_queries = [
+            record
+            for record in self.queries
+            if record[1] > threshold
+        ]
+
+        output: list[dict[str, Any]] = []
+        matched_feedback: set[int] = set()
+
+        for query in recent_queries:
+            self._append_query_projection(
+                output,
+                matched_feedback,
+                query,
+            )
+
+        self._append_unmatched_feedback(
+            output,
+            matched_feedback,
+        )
+
         return output

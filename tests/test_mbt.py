@@ -1,15 +1,10 @@
 """Model-based TCP RPC tests for practical assignment variant 26."""
 
-import sys
 import threading
-from pathlib import Path
 
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, rule
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 from model import DataModel
 from rpc import RPCClient, RPCServer
